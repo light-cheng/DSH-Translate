@@ -1430,9 +1430,9 @@ window.__ModuleLoader__.load({
 .dsh-tr-page-intro{margin:0;font-size:13px;line-height:1.7;color:var(--dsw-alias-label-secondary)}
 .dsh-tr-group{display:flex;flex-direction:column;gap:2px;border:1px solid var(--dsw-alias-border-l1);border-radius:12px;background:var(--dsw-alias-bg-layer-1);padding:4px 14px}
 .dsh-tr-group-title{font-size:12px;font-weight:600;letter-spacing:.04em;color:var(--dsw-alias-label-secondary);padding:10px 0 6px}
-.dsh-tr-row{display:flex;align-items:center;gap:14px;padding:10px 0;border-top:1px solid var(--dsw-alias-border-l1)}
+.dsh-tr-row{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;padding:10px 0;border-top:1px solid var(--dsw-alias-border-l1)}
 .dsh-tr-row:first-of-type{border-top:0}
-.dsh-tr-row-main{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1}
+.dsh-tr-row-main{display:flex;flex-direction:column;gap:2px;min-width:min(100%,220px);flex:1 1 220px}
 .dsh-tr-row-label{font-size:13px;color:var(--dsw-alias-label-primary)}
 .dsh-tr-row-hint{font-size:12px;line-height:1.5;color:var(--dsw-alias-label-secondary)}
 .dsh-tr-switch{appearance:none;flex:0 0 auto;width:38px;height:22px;border-radius:999px;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-layer-2);padding:2px;cursor:pointer;display:flex;align-items:center;transition:background .15s,border-color .15s}
@@ -1441,7 +1441,7 @@ window.__ModuleLoader__.load({
 .dsh-tr-switch.is-on .dsh-tr-knob{transform:translateX(16px)}
 .dsh-tr-select,.dsh-tr-input{appearance:none;border:1px solid var(--dsw-alias-border-l1);background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-primary);border-radius:8px;padding:4px 8px;font-size:12.5px;line-height:20px;min-width:0}
 .dsh-tr-input{min-width:150px}
-.dsh-tr-inline{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.dsh-tr-inline{display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0;max-width:100%}
 .dsh-tr-vocab-toolbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:2px 0 10px}
 .dsh-tr-vocab-search{flex:1 1 200px;min-width:170px}
 .dsh-tr-vocab-count{font-size:11.5px;color:var(--dsw-alias-state-idle-primary)}

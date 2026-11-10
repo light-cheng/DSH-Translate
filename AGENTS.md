@@ -58,6 +58,7 @@ Browser-side behaviour has no real DOM in the test environment. `test/client.tes
 
 ## Pitfalls worth remembering
 
+- Settings rows must stay wrappable: `.dsh-tr-row` wraps, `.dsh-tr-row-main` keeps a non-zero flex basis, and `.dsh-tr-inline` may shrink (`min-width:0`). Without all three, a narrow settings pane squeezes a long row label (the model-route hint) to one character per line. `test/settings-layout.test.mjs` pins the contract; check a layout change by rendering the shipped CSS at a narrow viewport (a throwaway HTML page plus a headless browser) instead of guessing.
 - The dictionary route's `available:false` path must keep the 1:1 entry shape; the client pairs rows by index.
 - A lost dictionary file must leave the plugin fully working (no local gloss, settings page says "not installed"), never a 500 or a thrown error.
 - Do not reorder the lookup chain: exact → inflected form (`forms`) → conservative morphology.
