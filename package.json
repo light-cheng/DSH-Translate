@@ -1,0 +1,83 @@
+{
+  "name": "@lightcheng/dsh-translate",
+  "version": "0.1.1",
+  "private": false,
+  "description": "English translation and learning for DeepSeek Harness: bilingual reasoning, selection translation, composer polish, offline dictionary, pronunciation, vocabulary notebook",
+  "type": "module",
+  "main": "./index.js",
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js",
+    "./locale/*.json": "./locale/*.json",
+    "./icon": "./icon.svg"
+  },
+  "files": [
+    "index.js",
+    "client.js",
+    "lib",
+    "data",
+    "docs",
+    "locale/*.json",
+    "icon.svg",
+    "cordis.patch.yml",
+    "scripts",
+    "test",
+    "LICENSE",
+    "LICENSES",
+    "THIRD-PARTY-NOTICES.md",
+    "CHANGELOG.md",
+    "screenshots.json",
+    "README.md",
+    "README_zh.md"
+  ],
+  "icon": "icon.svg",
+  "dsh": {
+    "displayName": "DSH-Translate",
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "immediately": true,
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-conversation",
+        "@deepseek-ai/dsh-client-locale"
+      ]
+    }
+  },
+  "engines": {
+    "node": ">=22",
+    "dsh": ">=0.2.1-rc.5 <0.3.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "deepseek",
+    "translation",
+    "english-learning",
+    "dictionary",
+    "vocabulary",
+    "chinese",
+    "client-plugin",
+    "ollama"
+  ],
+  "author": "Light Cheng (https://github.com/light-cheng)",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/light-cheng/DSH-Translate.git"
+  },
+  "homepage": "https://github.com/light-cheng/DSH-Translate#readme",
+  "bugs": {
+    "url": "https://github.com/light-cheng/DSH-Translate/issues"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.mjs",
+    "build:dict": "node scripts/build-dictionary.mjs",
+    "check": "node --check index.js && node --check client.js && node --check lib/parse.js && node --check lib/cache.js && node --check lib/store.js && node --check lib/prompt.js && node --check lib/model.js && node --check lib/dictionary.js && node --check lib/routes.js && node --check scripts/build-dictionary.mjs"
+  }
+}

@@ -1,0 +1,4 @@
+# dsh-translate: inserts the English translation & learning plugin into this profile.
+- insert:
+    - id: dsh-translate
+      name: "@lightcheng/dsh-translate"

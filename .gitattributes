@@ -1,0 +1,8 @@
+# Normalise text to LF so the plugin's shell scripts and source files behave
+# the same on every platform; keep the binary payloads and images untouched.
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.ico binary
+*.gz binary

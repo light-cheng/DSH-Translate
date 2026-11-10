@@ -1,0 +1,27 @@
+# Scratch space: downloaded datasets, in-progress screenshots, backups and
+# one-off scripts. Nothing in here is part of the plugin.
+tmp/
+
+# Node
+node_modules/
+npm-debug.log*
+package-lock.json
+pnpm-lock.yaml
+
+# Local secrets (never commit keys)
+.env
+.env.*
+
+# Packed plugin bundles
+*.tgz
+
+# Tooling and session artifacts
+.strata/
+.vscode/
+.idea/
+*.log
+
+# OS noise
+.DS_Store
+Thumbs.db
+desktop.ini

@@ -1,0 +1,12 @@
+{
+  "screenshots": [
+    {
+      "path": "docs/images/settings-en.png",
+      "alt": "DSH-Translate settings: vocabulary notebook, behaviour, dictionary and pronunciation, model route and cache"
+    },
+    {
+      "path": "docs/images/settings-zh.png",
+      "alt": "DSH-Translate 设置页：生词本、行为、词典与发音、翻译引擎与缓存"
+    }
+  ]
+}
