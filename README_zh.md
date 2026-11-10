@@ -80,7 +80,7 @@ tmp/                 开发用临时目录（不入包）
 
 ## 安装 / 卸载
 
-要求：DeepSeek Harness `0.2.1-rc.5` 或更新（开发与验证用的是 `0.2.2-rc.1`），Node.js 22+。
+要求：DeepSeek Harness `0.2.1-rc.5` 或更新（开发时用的是 `0.2.2-rc.1`），**Windows / macOS / Linux** 均可。DSH 桌面版自带 Node.js 运行时，使用插件不需要另装任何东西；只有从源码构建或跑测试时才需要 Node.js 22+。
 
 - **插件管理器**：在市场里安装 **DSH-Translate**，或把 `@lightcheng/dsh-translate` 加进 profile，然后重启 DSH。
 - **npm**：`dsh plugin --profile <profile> add @lightcheng/dsh-translate`。

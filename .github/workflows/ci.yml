@@ -11,12 +11,22 @@ permissions:
 
 jobs:
   test:
-    name: Node ${{ matrix.node }}
-    runs-on: ubuntu-latest
+    # The plugin is platform-neutral (no native deps, no shell calls), so pin
+    # that promise on all three desktop platforms DSH ships for.
+    name: ${{ matrix.os }} · Node ${{ matrix.node }}
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        node: [22, 24]
+        include:
+          - os: ubuntu-latest
+            node: 22
+          - os: ubuntu-latest
+            node: 24
+          - os: macos-latest
+            node: 22
+          - os: windows-latest
+            node: 22
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

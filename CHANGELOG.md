@@ -15,5 +15,7 @@ First public release.
 - Model route choice: Harness cloud model, local Ollama, or local-first with cloud fallback;
   translation cache and notebook live in the DSH profile under `dsh-translate/`.
 - Chinese and English UI, following the Harness language setting.
+- Runs on Windows, macOS and Linux with no native dependencies or shell calls; the desktop app
+  supplies the Node.js runtime.
 - Licensing: plugin code MIT; bundled dictionary data GPL-3.0-only because the British IPA
   data derives from ipacards (GPL-3.0). See `THIRD-PARTY-NOTICES.md`.

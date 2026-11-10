@@ -80,7 +80,7 @@ tmp/                 Scratch space for development (not packaged)
 
 ## Install / uninstall
 
-Requirements: DeepSeek Harness `0.2.1-rc.5` or newer (developed and tested on `0.2.2-rc.1`) and Node.js 22+.
+Requirements: DeepSeek Harness `0.2.1-rc.5` or newer (developed on `0.2.2-rc.1`), on **Windows, macOS or Linux**. The DSH desktop app ships its own Node.js runtime, so nothing else is needed to use the plugin; Node.js 22+ is only required when you build or test it from source.
 
 - **Plugin Manager**: install **DSH-Translate** from the marketplace, or add the package `@lightcheng/dsh-translate` to your profile, then restart DSH.
 - **npm**: `dsh plugin --profile <profile> add @lightcheng/dsh-translate`.
