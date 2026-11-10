@@ -6,6 +6,7 @@
  */
 
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
 import test from 'node:test'
 
 const REACT_STUB = {
@@ -19,12 +20,14 @@ const REACT_STUB = {
 
 async function loadClient() {
   let exported = null
+  let registrationId = null
   const registrations = []
   const effects = []
 
   globalThis.window = {
     __ModuleLoader__: {
       load(definition) {
+        registrationId = definition.id
         exported = definition.factory((name) => {
           if (name === 'react') return REACT_STUB
           throw new Error(`unexpected import: ${name}`)
@@ -39,8 +42,18 @@ async function loadClient() {
 
   await import(`../client.js?test=${Date.now()}`)
   assert.ok(exported, 'the module registered a factory')
-  return { exported, registrations, effects }
+  return { exported, registrationId, registrations, effects }
 }
+
+test('client half registers under the package name the Host graph keys rows by', async () => {
+  // DSH's client-module graph keys one row per package and only resolves that
+  // row when the bundle registers under the identical id. A short plugin id
+  // makes the row load a second time (duplicate factory registration) and
+  // leaves it unactivated, which fails Web boot.
+  const manifest = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'))
+  const { registrationId } = await loadClient()
+  assert.equal(registrationId, manifest.name)
+})
 
 test('client half registers the reasoning body, overlay, 中→英 button and settings page', async () => {
   const { exported, registrations, effects } = await loadClient()

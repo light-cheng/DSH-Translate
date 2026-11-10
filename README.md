@@ -101,7 +101,7 @@ npm run build:dict       # optional: rebuild data/dictionary.json.gz (needs netw
 
 `test/routes.translate.test.mjs` drives both `/translate` modes through a fake Harness model (chunk protocol, `part`/`next`, per-part cache, a failed part keeping the others, no truncation, 60k limit); `test/parse.test.mjs` covers `planChunks` determinism and full coverage. Neither test uses the network or a real model. `test/dictionary-data.test.mjs` validates the shipped payload.
 
-`client.js` is a prebuilt single-file dynamic module (`window.__ModuleLoader__.load`) with no bundler; refresh the page to load new code. Host-side changes (`index.js`, `lib/*`) are loaded when DSH starts: restart DSH to apply them (a page refresh only reloads `client.js`).
+`client.js` is a prebuilt single-file dynamic module (`window.__ModuleLoader__.load`) with no bundler; refresh the page to load new code. Host-side changes (`index.js`, `lib/*`) are loaded when DSH starts: restart DSH to apply them (a page refresh only reloads `client.js`). DSH keys one client-module row per package name, so the bundle registers under `@lightcheng/dsh-translate` — the `name` in `package.json`, not the short plugin id — and `test/client.test.mjs` pins that.
 
 ## License
 
