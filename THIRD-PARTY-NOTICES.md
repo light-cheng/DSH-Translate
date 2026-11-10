@@ -4,7 +4,7 @@ This repository and the npm package contain two differently licensed parts:
 
 | Part | License | Files |
 | --- | --- | --- |
-| Plugin source code (Host half + browser half) | **MIT** | `index.js`, `lib/`, `client.js`, `scripts/`, `test/`, `cordis.patch.yml`, `locale/`, `icon.svg` |
+| Plugin source code (Host half + browser half) | **MIT** | `index.js`, `lib/`, `client.js`, `scripts/`, `test/`, `cordis.patch.yml`, `locale/`, `assets/icon.png` |
 | Bundled dictionary data | **GPL-3.0-only** | `data/dictionary.json.gz`, `data/dictionary.meta.json`, and the payload they hold |
 
 `package.json` declares `"license": "MIT"` for the code. The bundled data ships under

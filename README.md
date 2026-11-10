@@ -1,6 +1,6 @@
 # DSH-Translate
 
-<p align="center"><img src="docs/images/icon.png" width="112" height="112" alt="DSH-Translate icon"></p>
+<p align="center"><img src="assets/icon.png" width="112" height="112" alt="DSH-Translate icon"></p>
 
 <p align="center"><b>English translation and learning for DeepSeek Harness</b><br>
 Bilingual reasoning, instant selection translation with an offline dictionary, pronunciation, composer polish, and a vocabulary notebook.</p>
@@ -71,10 +71,10 @@ lib/cache.js         LRU translation cache (memory + profile file)
 lib/store.js         JSON store for settings and vocabulary (0600, temp file + rename)
 client.js            Browser half: reasoning body and per-part rendering, selection overlay + context menu, dictionary gloss and pronunciation, composer Aa, settings page
 data/                Bundled dictionary payload and source notes (data/README.md)
-docs/images/         README images (icon + settings screenshots)
+docs/images/         README screenshots (settings page, en + zh)
 scripts/             Developer tools: build-dictionary.mjs rebuilds the bundled dictionary
 locale/*.json        Plugin Manager title and description
-icon.svg             Plugin icon
+assets/icon.png      Plugin icon (Plugin Manager and marketplace)
 tmp/                 Scratch space for development (not packaged)
 ```
 

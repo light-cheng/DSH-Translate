@@ -1,6 +1,6 @@
 # DSH-Translate · 英语翻译与学习
 
-<p align="center"><img src="docs/images/icon.png" width="112" height="112" alt="DSH-Translate 图标"></p>
+<p align="center"><img src="assets/icon.png" width="112" height="112" alt="DSH-Translate 图标"></p>
 
 <p align="center"><b>DeepSeek Harness 的英语翻译与学习插件</b><br>
 思考链中英对照、划词即时翻译（先看本地词典）、真人发音、输入框润色，以及生词本。</p>
@@ -71,10 +71,10 @@ lib/cache.js         LRU 译文缓存（内存 + profile 文件）
 lib/store.js         设置与生词本的 JSON 存储（0600、临时文件 + rename）
 client.js            浏览器半边：思考链正文与逐段译文、划词浮层与右键菜单、词典快速释义与发音、输入框 Aa、设置页
 data/                内置词典产物与来源说明（data/README.md）
-docs/images/         README 图片（图标 + 设置页截图）
+docs/images/         README 截图（中英设置页）
 scripts/             开发工具：build-dictionary.mjs 重建内置词典
 locale/*.json        Plugin Manager 显示用的标题与描述
-icon.svg             插件图标
+assets/icon.png      插件图标（插件管理器与市场用）
 tmp/                 开发用临时目录（不入包）
 ```
 
