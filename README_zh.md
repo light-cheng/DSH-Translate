@@ -101,7 +101,7 @@ npm run build:dict       # 可选：重建 data/dictionary.json.gz（需联网�
 
 `test/routes.translate.test.mjs` 用假的 Harness 模型把 `/translate` 的两种模式跑一遍（按段协议、`part`/`next`、按段缓存、单段失败不丢其他段、整段不截断、6 万字符上限）；`test/parse.test.mjs` 覆盖 `planChunks` 的完整覆盖与确定性；两者都不联网、不调用真实模型。`test/dictionary-data.test.mjs` 校验随包词典产物。
 
-`client.js` 是预构建的单文件动态模块（`window.__ModuleLoader__.load`），不经打包器；改动后刷新页面加载新代码。Host 侧（`index.js`、`lib/*`）代码只在 DSH 启动时加载，需重启 DSH 才生效（只刷新页面只会更新 `client.js`）。
+`client.js` 是预构建的单文件动态模块（`window.__ModuleLoader__.load`），不经打包器；改动后刷新页面加载新代码。Host 侧（`index.js`、`lib/*`）代码只在 DSH 启动时加载，需重启 DSH 才生效（只刷新页面只会更新 `client.js`）。DSH 的 client-module 图按包名建行，所以 bundle 必须以 `@lightcheng/dsh-translate`（`package.json` 的 `name`）注册，而不是短插件 id；`test/client.test.mjs` 会钉住这一点。
 
 ## License
 

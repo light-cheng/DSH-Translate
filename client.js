@@ -14,7 +14,10 @@
  */
 
 window.__ModuleLoader__.load({
-  id: 'dsh-translate',
+  // The Host client-module graph keys its rows by package name and resolves a
+  // row only when the bundle registers under that same id; the short plugin id
+  // makes the row load twice and fail boot.
+  id: '@lightcheng/dsh-translate',
   factory(require) {
     const React = require('react')
     const h = React.createElement

@@ -1,6 +1,6 @@
 {
   "name": "@lightcheng/dsh-translate",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "private": false,
   "description": "English translation and learning for DeepSeek Harness: bilingual reasoning, selection translation, composer polish, offline dictionary, pronunciation, vocabulary notebook",
   "type": "module",

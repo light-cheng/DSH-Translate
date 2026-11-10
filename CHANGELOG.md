@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.2 — 2026-11-10
+
+- Fix Web boot failing after install. `client.js` registered its factory under the short plugin id
+  (`dsh-translate`) instead of the package name (`@lightcheng/dsh-translate`). DSH keys one
+  client-module row per package name, so the row loaded a second time and Web boot aborted with
+  `client-modules: duplicate factory registration` and `web boot: 1 entry did not activate`.
+  The registration id now equals `package.json` `name`, pinned by `test/client.test.mjs`.
+
 ## 0.1.1 — 2026-11-10
 
 First public release.
