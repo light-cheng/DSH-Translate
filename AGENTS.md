@@ -58,6 +58,7 @@ Browser-side behaviour has no real DOM in the test environment. `test/client.tes
 
 ## Pitfalls worth remembering
 
+- Floating overlay surfaces (`.dsh-tr-float`, `.dsh-tr-pill`, `.dsh-tr-menu`, `.dsh-tr-close`) live inside `shell.overlay` (`#root`), so on DSH Desktop they must declare `-webkit-app-region: no-drag` and clamp below the desktop titlebar clearance (`--dsh-windows-titlebar-height` / `--dsh-frame-top-clearance`), with `.dsh-tr-close` kept as a fixed 24×24 centered box. Without both, a card flipped to the top of the viewport lands inside Electron's 40 px Windows caption drag strip and slices a click dead zone right across the center of `×`. `test/overlay-close.test.mjs` pins the contract.
 - Settings rows must stay wrappable: `.dsh-tr-row` wraps, `.dsh-tr-row-main` keeps a non-zero flex basis, and `.dsh-tr-inline` may shrink (`min-width:0`). Without all three, a narrow settings pane squeezes a long row label (the model-route hint) to one character per line. `test/settings-layout.test.mjs` pins the contract; check a layout change by rendering the shipped CSS at a narrow viewport (a throwaway HTML page plus a headless browser) instead of guessing.
 - The dictionary route's `available:false` path must keep the 1:1 entry shape; the client pairs rows by index.
 - A lost dictionary file must leave the plugin fully working (no local gloss, settings page says "not installed"), never a 500 or a thrown error.

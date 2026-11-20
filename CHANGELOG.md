@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.1.4 — 2026-11-20
+
+- Fix a click dead zone in the center of the selection translation card's close (`×`) button on
+  DSH Desktop (#3). Floating surfaces rendered inside `shell.overlay` (`#root`) did not declare
+  `-webkit-app-region: no-drag` and `placeCard` clamped to `top: 12px`, so flipping a card above
+  a mid-screen selection pushed `.dsh-tr-close` (`y = 25–45 px`) straight into the 40 px Windows
+  caption drag strip (`-webkit-app-region: drag`) and macOS top chrome — swallowing pointer
+  events at the center of `×` while leaving only its bottom edge clickable. Floating surfaces
+  (`.dsh-tr-float`, `.dsh-tr-pill`, `.dsh-tr-menu`, `.dsh-tr-close`) now opt out of window drag,
+  overlay placement stays below the desktop titlebar clearance (`--dsh-windows-titlebar-height` /
+  `--dsh-frame-top-clearance`), `.dsh-tr-float-head` no longer shrinks when scrolling, and
+  `.dsh-tr-close` is a fixed 24×24 centered hit target with an `aria-label`. Pinned by
+  `test/overlay-close.test.mjs`.
+
 ## 0.1.3 — 2026-11-10
 
 - Fix the settings page crushing a long row label into one character per line in a narrow

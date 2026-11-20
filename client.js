@@ -915,15 +915,42 @@ window.__ModuleLoader__.load({
       }
     }
 
+    /** Top inset occupied by a desktop window titlebar, or 0 in a plain browser. */
+    function viewportTopInset() {
+      try {
+        const root = document.documentElement
+        if (!root || typeof root.hasAttribute !== 'function') return 0
+        if (root.hasAttribute('data-fullscreen')) return 0
+        const computed = typeof window.getComputedStyle === 'function' ? window.getComputedStyle(root) : null
+        const readPx = (name) => {
+          const inline = root.style && typeof root.style.getPropertyValue === 'function' ? root.style.getPropertyValue(name) : ''
+          const raw = inline || (computed && typeof computed.getPropertyValue === 'function' ? computed.getPropertyValue(name) : '')
+          const value = Number.parseFloat(raw)
+          return Number.isFinite(value) && value > 0 ? value : 0
+        }
+        if (root.hasAttribute('data-windows-titlebar')) {
+          return readPx('--dsh-windows-titlebar-height') || readPx('--dsh-frame-chrome-top') || 40
+        }
+        const clearance = readPx('--dsh-frame-top-clearance')
+        if (clearance > 0) return clearance
+        if (root.getAttribute('data-platform') === 'darwin') return 48
+        return 0
+      } catch {
+        return 0
+      }
+    }
+
     function placePill(rect) {
       const vw = window.innerWidth || 1280
       const vh = window.innerHeight || 800
+      const minTop = 8 + viewportTopInset()
       const width = 44
       const height = 28
       let left = rect.left + rect.width / 2 - width / 2
       left = Math.max(8, Math.min(left, vw - width - 8))
       let top = rect.bottom + 10
-      if (top + height > vh - 8) top = Math.max(8, rect.top - height - 10)
+      if (top + height > vh - 8) top = Math.max(minTop, rect.top - height - 10)
+      if (top < minTop) top = minTop
       return { left, top, width }
     }
 
@@ -931,17 +958,20 @@ window.__ModuleLoader__.load({
       const vw = window.innerWidth || 1280
       const vh = window.innerHeight || 800
       const pad = 12
+      const topInset = viewportTopInset()
+      const minTop = pad + topInset
       const width = Math.min(440, vw - pad * 2)
-      const maxHeight = Math.max(180, Math.min(Math.round(vh * 0.58), 460))
+      const availableHeight = Math.max(120, vh - minTop - pad)
+      const maxHeight = Math.min(Math.max(180, Math.min(Math.round(vh * 0.58), 460)), availableHeight)
       let left = rect ? rect.left : vw / 2 - width / 2
       left = Math.max(pad, Math.min(left, vw - width - pad))
       let top
       if (rect) {
         top = rect.bottom + 40
-        if (top + maxHeight > vh - pad) top = Math.max(pad, rect.top - maxHeight - 40)
-        if (top < pad) top = Math.max(pad, vh - maxHeight - pad)
+        if (top + maxHeight > vh - pad) top = Math.max(minTop, rect.top - maxHeight - 40)
+        if (top < minTop) top = minTop
       } else {
-        top = Math.round(vh / 2 - maxHeight / 2)
+        top = Math.max(minTop, Math.round((vh + topInset) / 2 - maxHeight / 2))
       }
       return { left, top, width, maxHeight }
     }
@@ -949,11 +979,12 @@ window.__ModuleLoader__.load({
     function placeMenu(x, y, itemCount) {
       const vw = window.innerWidth || 1280
       const vh = window.innerHeight || 800
+      const minTop = 8 + viewportTopInset()
       const width = 150
       const height = itemCount * 30 + 12
       return {
         left: Math.max(8, Math.min(x, vw - width - 8)),
-        top: Math.max(8, Math.min(y, vh - height - 8)),
+        top: Math.max(minTop, Math.min(y, vh - height - 8)),
         width,
       }
     }
@@ -1350,17 +1381,18 @@ window.__ModuleLoader__.load({
 
     const CSS = `
 .dsh-tr-overlay{pointer-events:none}
-.dsh-tr-pill{position:fixed;z-index:60;pointer-events:auto;appearance:none;display:inline-flex;align-items:center;justify-content:center;height:28px;min-width:44px;padding:0 8px;border-radius:999px;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-overlay);color:var(--dsw-alias-label-primary);font-size:12px;font-weight:600;line-height:1;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.18);transition:color .12s,border-color .12s}
+.dsh-tr-pill{position:fixed;z-index:60;pointer-events:auto;-webkit-app-region:no-drag;appearance:none;display:inline-flex;align-items:center;justify-content:center;height:28px;min-width:44px;padding:0 8px;border-radius:999px;border:1px solid var(--dsw-alias-border-l2);background:var(--dsw-alias-bg-overlay);color:var(--dsw-alias-label-primary);font-size:12px;font-weight:600;line-height:1;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.18);transition:color .12s,border-color .12s}
 .dsh-tr-pill:hover{color:var(--dsw-alias-brand-primary);border-color:var(--dsw-alias-brand-primary)}
-.dsh-tr-menu{position:fixed;z-index:62;pointer-events:auto;display:flex;flex-direction:column;min-width:132px;padding:4px;border:1px solid var(--dsw-alias-border-l2);border-radius:10px;background:var(--dsw-alias-bg-overlay);box-shadow:0 10px 28px rgba(0,0,0,.24)}
+.dsh-tr-menu{position:fixed;z-index:62;pointer-events:auto;-webkit-app-region:no-drag;display:flex;flex-direction:column;min-width:132px;padding:4px;border:1px solid var(--dsw-alias-border-l2);border-radius:10px;background:var(--dsw-alias-bg-overlay);box-shadow:0 10px 28px rgba(0,0,0,.24)}
 .dsh-tr-menu-item{appearance:none;border:0;background:transparent;border-radius:6px;padding:6px 10px;text-align:left;font-size:12.5px;line-height:18px;color:var(--dsw-alias-label-primary);cursor:pointer}
 .dsh-tr-menu-item:hover{background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-brand-primary)}
 .dsh-tr-menu-sep{height:1px;margin:3px 6px;background:var(--dsw-alias-border-l1)}
-.dsh-tr-float{position:fixed;z-index:61;pointer-events:auto;display:flex;flex-direction:column;gap:8px;overflow:auto;border:1px solid var(--dsw-alias-border-l2);border-radius:12px;background:var(--dsw-alias-bg-overlay);box-shadow:0 12px 36px rgba(0,0,0,.26);padding:12px 14px}
-.dsh-tr-float-head{display:flex;align-items:center;gap:8px}
-.dsh-tr-float-title{flex:1;font-size:12px;font-weight:600;letter-spacing:.03em;color:var(--dsw-alias-label-secondary)}
-.dsh-tr-close{appearance:none;border:0;background:transparent;color:var(--dsw-alias-label-secondary);font-size:16px;line-height:1;padding:2px 4px;cursor:pointer;border-radius:6px}
+.dsh-tr-float{position:fixed;z-index:61;pointer-events:auto;-webkit-app-region:no-drag;display:flex;flex-direction:column;gap:8px;overflow:auto;border:1px solid var(--dsw-alias-border-l2);border-radius:12px;background:var(--dsw-alias-bg-overlay);box-shadow:0 12px 36px rgba(0,0,0,.26);padding:12px 14px}
+.dsh-tr-float-head{display:flex;align-items:center;gap:8px;flex:0 0 auto}
+.dsh-tr-float-title{flex:1;min-width:0;font-size:12px;font-weight:600;letter-spacing:.03em;color:var(--dsw-alias-label-secondary)}
+.dsh-tr-close{appearance:none;display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;width:24px;height:24px;padding:0;border:0;background:transparent;color:var(--dsw-alias-label-secondary);font-size:16px;line-height:1;cursor:pointer;border-radius:6px;-webkit-app-region:no-drag}
 .dsh-tr-close:hover{color:var(--dsw-alias-label-primary);background:var(--dsw-alias-bg-layer-2)}
+.dsh-tr-close:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:1px}
 .dsh-tr-src{font-size:11.5px;line-height:1.5;color:var(--dsw-alias-state-idle-primary);border-top:1px solid var(--dsw-alias-border-l1);padding-top:6px;overflow-wrap:anywhere}
 .dsh-tr-root{display:flex;flex-direction:column;gap:8px;min-width:0}
 .dsh-tr-pre{white-space:pre-wrap;overflow-wrap:anywhere;color:var(--dsw-alias-label-secondary);font-size:13px;line-height:1.6}
@@ -2157,7 +2189,7 @@ mark.dsh-tr-hit{background:transparent;color:var(--dsw-alias-brand-primary);font
               'div',
               { className: 'dsh-tr-float-head' },
               h('span', { className: 'dsh-tr-float-title' }, panel.kind === 'draft' ? t('toEnglish.title') : t('action.translate')),
-              h('button', { type: 'button', className: 'dsh-tr-close', title: t('action.close'), onClick: closePanel }, '×'),
+              h('button', { type: 'button', className: 'dsh-tr-close', title: t('action.close'), 'aria-label': t('action.close'), onClick: closePanel }, '×'),
             ),
             panel.kind === 'draft'
               ? h(DraftResult, { panel, onUndo: undoDraft })
