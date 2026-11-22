@@ -92,4 +92,8 @@ jobs:
           if [ -n "${NPM_TOKEN:-}" ]; then
             npm config set //registry.npmjs.org/:_authToken "${NPM_TOKEN}"
           fi
-          npm publish --access public --provenance
+          if [[ "${VERSION}" == *-* ]]; then
+            npm publish --access public --provenance --tag next
+          else
+            npm publish --access public --provenance
+          fi

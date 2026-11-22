@@ -50,6 +50,20 @@ test('every locale key the client asks for is defined in both tables', () => {
     assert.ok(used.size > 50, `expected many translated keys, found ${used.size}`)
     const missing = [...used].filter((key) => !defined.has(key))
     assert.deepEqual(missing, [], `client.js asks for keys no table defines: ${missing.join(', ')}`)
+
+    const bodyAfterTables = source.slice(source.indexOf('// ------------------------------------------------------------------ util'))
+    const deadKeys = [...defined].filter((key) => !bodyAfterTables.includes(`'${key}'`))
+    assert.deepEqual(deadKeys, [], `client.js defines unused locale keys: ${deadKeys.join(', ')}`)
+})
+
+test('client.js carries no unused dsh-tr CSS classes', () => {
+    const cssStart = source.indexOf('const CSS = `')
+    const cssEnd = source.indexOf('`', cssStart + 13)
+    const css = source.slice(cssStart + 13, cssEnd)
+    const outsideCss = source.slice(0, cssStart) + source.slice(cssEnd + 1)
+    const classes = new Set([...css.matchAll(/\.(dsh-tr-[a-z0-9-]+)/g)].map((match) => match[1]))
+    const unused = [...classes].filter((name) => !outsideCss.includes(name))
+    assert.deepEqual(unused, [], `client.js defines unused CSS classes: ${unused.join(', ')}`)
 })
 
 test('long-chain progress keys keep their placeholders', () => {
@@ -67,7 +81,7 @@ test('long-chain progress keys keep their placeholders', () => {
 
 test('the Host/client wire fields exist on both halves', () => {
     const host = readFileSync(path.join(ROOT, 'lib', 'routes.js'), 'utf8')
-    for (const field of ['part', 'next', 'partial', 'failed', 'truncated']) {
+    for (const field of ['part', 'next', 'partial', 'truncated', 'force']) {
         const pattern = new RegExp(`\\b${field}\\b`)
         assert.match(host, pattern, `lib/routes.js must speak "${field}"`)
         assert.match(source, pattern, `client.js must speak "${field}"`)

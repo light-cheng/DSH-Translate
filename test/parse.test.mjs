@@ -34,6 +34,8 @@ test('stripFences removes one surrounding code fence', () => {
 test('extractJson reads fenced JSON and JSON surrounded by prose', () => {
   assert.deepEqual(extractJson('```json\n{"translation":"你好"}\n```'), { translation: '你好' })
   assert.deepEqual(extractJson('Here you go:\n{"translation":"你好"}\nthanks'), { translation: '你好' })
+  assert.deepEqual(extractJson('Note for {id}: {"translation":"你好"}'), { translation: '你好' })
+  assert.deepEqual(extractJson('Prefix {"translation":"a {b} c"} suffix {extra}'), { translation: 'a {b} c' })
   assert.equal(extractJson('no json here'), null)
 })
 
@@ -123,6 +125,9 @@ test('parseToEnglish falls back to the raw answer', () => {
 test('needsTranslation skips Chinese and code-only text', () => {
   assert.equal(needsTranslation('这是一段中文说明，里面有一个 identifier'), false)
   assert.equal(needsTranslation('The runner keeps retrying the request.'), true)
+  assert.equal(needsTranslation('go'), false)
+  assert.equal(needsTranslation('go', { mode: 'selection' }), true)
+  assert.equal(needsTranslation('a', { mode: 'selection' }), false)
   assert.equal(needsTranslation('a1'), false)
   assert.equal(needsTranslation(''), false)
 })

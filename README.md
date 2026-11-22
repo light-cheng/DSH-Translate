@@ -20,10 +20,10 @@ A persistent DeepSeek Harness Web plugin: read English while you work. Translate
 | Reasoning blocks | Open any reasoning block → click **Translate** at the end → Chinese translation, a context note and 3–6 key-vocabulary chips below the English. Manual by default; enable auto-translate in Settings. **Long blocks translate chunk by chunk** (~2400 characters each): the translation grows as parts arrive with a `x/y` progress label, can be stopped at any time, and resumes from the first unfinished part after a stop or a failed part. |
 | Selection | With the cloud engine, **selecting English opens a card automatically**: the top of the card shows the **offline dictionary gloss and phonetic first, without waiting for the model**; the model result then adds the meaning in context, a context note and vocabulary chips. Close or retry at any time. On the local engine the card waits for a **Translate** click (CPU inference is slow); auto-translate can also be turned off in Settings. |
 | Context menu | Select English and right-click → **Translate selection** / **Copy selection**. |
-| Dictionary | The plugin bundles a 58,468-entry English–Chinese dictionary (ECDICT + ipa-dict; the data file is GPL-3.0, see [License](#license)): a single word or a 2–4 word selection shows Chinese senses, US/UK IPA and a pronunciation button immediately. Fully local: no model call, no network. Can be switched off in Settings. |
+| Dictionary | The plugin bundles a 58,468-entry English–Chinese dictionary (ECDICT + ipa-dict; the data file is GPL-3.0, see [License](#license)): a single word (including `'s` possessives and inflections) or a 2–4 word selection shows Chinese senses, US/UK IPA and a pronunciation button immediately. Fully local: no model call, no network. Can be switched off in Settings. |
 | Pronunciation | Every word card, vocabulary chip and notebook entry has a 🔊 button: US/UK human audio from Youdao's dictionary audio; if it fails or the network is unavailable, playback falls back to the browser's `speechSynthesis` after 4.5 s. The IPA follows the accent chosen in Settings; the other accent is appended after a `·`. A preview button is in Settings. |
 | Composer 中→EN | Type a Chinese draft and a **中→EN** button appears on the right; click it to replace the draft with English (code, paths and identifiers preserved) plus 0–3 rewrite notes and an **Undo**. |
-| Vocabulary notebook | Click any term in a translation card to save it. The first group of the settings page is the notebook: search (term / part of speech / meaning / example), time filter (all / today / last 7 days / last 30 days), sort (newest / oldest / A–Z), and a table of term · pos · meaning · saved time with keyword highlighting. **Click a row to expand its word card in place** (IPA, pronunciation, dictionary senses, then meaning → usage → collocations → example; explained automatically on the cloud engine, on demand on the local engine). Delete one entry, copy the filtered list, or clear the notebook; the settings nav shows the entry count. |
+| Vocabulary notebook | Click any term in a translation card to save it. The first group of the settings page is the notebook: search (term / part of speech / meaning / example), time filter (all / today / last 7 days / last 30 days), sort (newest / oldest / A–Z), and a table of term · pos · meaning · saved time with keyword highlighting. **Click a row to expand its word card in place** (IPA, pronunciation, dictionary senses, then meaning → usage → collocations → example; explained automatically on the cloud engine, on demand on the local engine). Delete one entry, copy the filtered list, or clear the notebook (two-click confirm); the settings nav shows the entry count. |
 
 UI text follows the DSH language setting (Chinese / English). All styling uses the host theme variables; the translation card is anchored next to the selection and does not cover the composer.
 
@@ -61,7 +61,7 @@ Translation cache and vocabulary live under the DSH profile directory in `dsh-tr
 
 ```
 index.js             Host entry: optional llm / agentDefaultModel injection, /dsh-translate/api routes, dictionary warm-up
-lib/routes.js        Same-origin JSON API (state / settings / translate / polish / vocab / dictionary / local / cache); two translate modes: chunked and one-shot
+lib/routes.js        Same-origin JSON API (state / settings / translate / toenglish / explain / vocab / dictionary / local / cache); two translate modes: chunked and one-shot
 lib/dictionary.js    Bundled dictionary: decompress + index data/dictionary.json.gz, exact → inflected form → morphology
 lib/model.js         Route choice: local Ollama or the Harness LLM stream
 lib/local.js         Ollama client (/api/tags, /api/chat, keep_alive)
@@ -69,7 +69,7 @@ lib/prompt.js        Prompts for translation + explanation, per-part translation
 lib/parse.js         Tolerant JSON parsing, term normalisation, chunking and the deterministic `planChunks` plan
 lib/cache.js         LRU translation cache (memory + profile file)
 lib/store.js         JSON store for settings and vocabulary (0600, temp file + rename)
-client.js            Browser half: reasoning body and per-part rendering, selection overlay + context menu, dictionary gloss and pronunciation, composer Aa, settings page
+client.js            Browser half: reasoning body and per-part rendering, selection overlay + context menu, dictionary gloss and pronunciation, composer 中→EN, settings page
 data/                Bundled dictionary payload and source notes (data/README.md)
 docs/images/         README screenshots (settings page, en + zh)
 scripts/             Developer tools: build-dictionary.mjs rebuilds the bundled dictionary

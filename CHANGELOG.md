@@ -1,5 +1,37 @@
 # Changelog
 
+## 0.1.5 — 2026-11-22
+
+- Enforce the local-only privacy invariant (`lib/model.js`, `lib/routes.js`): selecting
+  `engine: 'local'` without a configured `localModel` now refuses with `NO_MODEL` instead of
+  falling back to the cloud route; `engine: 'auto'` uses its own local abort timer so a local
+  timeout cleanly falls back to cloud without pre-aborting the fallback call, and fallback results
+  no longer poison the local cache key.
+- Fix client memo & retry behaviour (`client.js`, `lib/routes.js`): `memo` keys now include the
+  active route signature (`engine`, model, `targetLanguage`) and selection context; Retry passes
+  `force: true` to bypass both client `memo` and Host cache; incomplete (`partial`) selections are
+  not memoized; clearing cache or switching routes invalidates client `memo`; closing a card or
+  HTTP connection aborts in-flight model calls.
+- Fix `WordCard` missing `meaning` rendering (`client.js`), add `AbortController` cleanup, and
+  display the active local/auto model in Settings.
+- Fix `POST /settings` partial updates wiping custom `model` (`lib/routes.js`), validate
+  `localBaseUrl` (`BAD_URL`), propagate `cache.setLimit()` eviction, and make `safeMessage()`
+  redact `Bearer` tokens and `key=secret` pairs.
+- Fix cut-off JSON protection on `/explain` and `/toenglish`, balanced JSON extraction around prose
+  braces (`lib/parse.js`), 2-letter selection translation (`needsTranslation`), and `'s` possessive
+  dictionary lookup (`lib/dictionary.js`).
+- Fix `playSpeech`/`stopSpeech` watchdog timer/callback leaks so rapid clicks never let an earlier
+  word interrupt the current pronunciation (`client.js`).
+- Fix `JsonStore` and `TranslationCache` concurrent write races (`writeQueue`, unique temp paths,
+  `.tmp` cleanup, best-effort `chmod`), serialized `/vocab` mutations, and debounced cache writes.
+- Fix composer `extractDraftText` false positives on empty strings, guard `DraftToEnglishButton`
+  against overwriting modified drafts, mount `<style>` once into `document.head`, keep the manual
+  selection pill anchored on scroll, gate right-click menu to clicks on the selection, add a
+  two-click confirmation on Clear vocabulary, remove dead `POST /diag` and unused locale/CSS/config
+  entries, and fix Cordis service/route disposal (`index.js`, `lib/routes.js`).
+- Expand test coverage across `lib/store.js`, `lib/cache.js`, `lib/routes.js`, `lib/model.js`,
+  `lib/parse.js`, `lib/dictionary.js`, `index.js`, and live `client.js` component flows.
+
 ## 0.1.4 — 2026-11-20
 
 - Fix a click dead zone in the center of the selection translation card's close (`×`) button on

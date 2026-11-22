@@ -26,7 +26,6 @@ const DEFAULT_CONFIG = {
   autoTranslate: false,
   showTerms: true,
   showContext: true,
-  showDock: true,
   /** Show a bundled-dictionary gloss before the model explains a word. */
   showDict: true,
   /** 'us' | 'uk': which IPA and which Youdao audio the word cards prefer. */
@@ -65,8 +64,6 @@ export async function apply(ctx, rawConfig) {
     config,
     logger,
     services: {},
-    diagPath: dataDir ? path.join(dataDir, 'diagnostic.json') : undefined,
-    diagnostic: null,
     settings: new JsonStore({ filePath: dataDir ? path.join(dataDir, 'settings.json') : undefined, defaults: config, logger }),
     vocab: new JsonStore({ filePath: dataDir ? path.join(dataDir, 'vocab.json') : undefined, defaults: { entries: [] }, logger }),
     cache: new TranslationCache({ filePath: dataDir ? path.join(dataDir, 'cache.json') : undefined, limit: config.cacheLimit, logger }),
@@ -82,7 +79,7 @@ export async function apply(ctx, rawConfig) {
   runtime.ready = Promise.all([runtime.settings.load(), runtime.vocab.load(), runtime.cache.load()])
     .then(() => {
       const settings = runtime.settings.snapshot()
-      if (Number.isFinite(settings.cacheLimit)) runtime.cache.limit = settings.cacheLimit
+      if (Number.isFinite(settings.cacheLimit)) runtime.cache.setLimit(settings.cacheLimit)
     })
     .catch((error) => {
       logger?.warn?.(`dsh-translate: could not load state: ${error?.message ?? error}`)
@@ -93,6 +90,10 @@ export async function apply(ctx, rawConfig) {
   const disposeModel = ctx.inject(['llm', 'agentDefaultModel'], (child) => {
     runtime.services.llm = child.llm
     runtime.services.agentDefaultModel = child.agentDefaultModel
+    child.effect?.(() => () => {
+      if (runtime.services.llm === child.llm) runtime.services.llm = undefined
+      if (runtime.services.agentDefaultModel === child.agentDefaultModel) runtime.services.agentDefaultModel = undefined
+    })
   })
   if (typeof disposeModel === 'function') ctx.effect(() => disposeModel)
 
@@ -106,8 +107,5 @@ export async function apply(ctx, rawConfig) {
   )
 
   // Persist the LRU before the plugin unloads so a restart does not re-spend.
-  ctx.effect(() => () => {
-    void runtime.cache.flush()
-    return undefined
-  })
+  ctx.effect(() => () => runtime.cache.flush())
 }

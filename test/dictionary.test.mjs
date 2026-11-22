@@ -198,12 +198,15 @@ test('lookup reduces inflected words the form table missed', async (t) => {
     ['happiest', 'happy'],
     ['quickly', 'quick'],
     ['happily', 'happy'],
+    ["state's", 'state'],
+    ['STATE’S', 'state'],
   ]
   for (const [input, word] of cases) {
     const entry = dictionary.lookup(input)
     assert.equal(entry?.matched, 'morph', `${input} should be reduced to a known word`)
     assert.equal(entry.word, word, `${input} should reduce to ${word}`)
   }
+  assert.equal(dictionary.lookup("don't")?.matched, 'exact')
 })
 
 test('lookupMany keeps input order with one row per input', async (t) => {

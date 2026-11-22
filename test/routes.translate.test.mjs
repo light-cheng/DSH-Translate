@@ -9,6 +9,8 @@
  */
 
 import assert from 'node:assert/strict'
+import { EventEmitter } from 'node:events'
+import http from 'node:http'
 import test from 'node:test'
 
 import { TranslationCache, cacheKey } from '../lib/cache.js'
@@ -72,7 +74,6 @@ function defaultSettings(overrides = {}) {
     autoTranslate: false,
     showTerms: true,
     showContext: true,
-    showDock: true,
     showDict: true,
     accent: 'us',
     maxChars: 8000,
@@ -116,8 +117,6 @@ function createRuntime({ chunks = [], failFor = () => false, answer = structured
         llm: { stream },
         agentDefaultModel: { currentSelection: () => ({ provider: 'fake', model: 'fake-model' }) },
       },
-      diagPath: undefined,
-      diagnostic: null,
       settings: {
         persist: false,
         snapshot: () => config,
@@ -498,4 +497,147 @@ test('text that needs no translation is skipped and still reports a part', async
   assert.equal(result.json.part.index, 0)
   assert.equal(result.json.part.count, 1)
   assert.equal(calls.length, 0)
+})
+
+test('engine local without localModel returns NO_MODEL and never calls cloud', async () => {
+  const { runtime, calls } = createRuntime({ chunks: [], settings: { engine: 'local', localModel: '' } })
+  const routes = createHarness(runtime)
+
+  const result = await postTranslate(routes, { text: 'Hello world', context: '', mode: 'selection' })
+  assert.equal(result.json.ok, false)
+  assert.equal(result.json.code, 'NO_MODEL')
+  assert.equal(calls.length, 0)
+})
+
+test('force: true bypasses the Host translation cache in both modes', async () => {
+  const text = 'Hello world from the runner.'
+  const chunks = planChunks(text)
+  const { runtime, calls } = createRuntime({ chunks })
+  const routes = createHarness(runtime)
+
+  const first = await postTranslate(routes, { text, context: '', mode: 'selection' })
+  assert.equal(first.json.ok, true)
+  assert.equal(first.json.cached, false)
+  assert.equal(calls.length, 1)
+
+  const cached = await postTranslate(routes, { text, context: '', mode: 'selection' })
+  assert.equal(cached.json.cached, true)
+  assert.equal(calls.length, 1)
+
+  const forced = await postTranslate(routes, { text, context: '', mode: 'selection', force: true })
+  assert.equal(forced.json.ok, true)
+  assert.equal(forced.json.cached, false)
+  assert.equal(calls.length, 2)
+
+  const part1 = await postTranslate(routes, { text, context: '', mode: 'reasoning', index: 0 })
+  assert.equal(part1.json.cached, false)
+  const part1Forced = await postTranslate(routes, { text, context: '', mode: 'reasoning', index: 0, force: true })
+  assert.equal(part1Forced.json.cached, false)
+  assert.equal(calls.length, 4)
+})
+
+test('selection cache separates different surrounding contexts', async () => {
+  const text = 'state'
+  const chunks = planChunks(text)
+  const { runtime, calls } = createRuntime({ chunks })
+  const routes = createHarness(runtime)
+
+  const first = await postTranslate(routes, { text, context: 'federal state tax', mode: 'selection' })
+  assert.equal(first.json.cached, false)
+  const second = await postTranslate(routes, { text, context: 'React component state', mode: 'selection' })
+  assert.equal(second.json.cached, false)
+  assert.equal(calls.length, 2)
+
+  const repeatSecond = await postTranslate(routes, { text, context: 'React component state', mode: 'selection' })
+  assert.equal(repeatSecond.json.cached, true)
+  assert.equal(calls.length, 2)
+})
+
+test('2-letter selection translates while 2-letter reasoning skips', async () => {
+  const chunks = planChunks('go')
+  const { runtime, calls } = createRuntime({ chunks })
+  const routes = createHarness(runtime)
+
+  const reasoning = await postTranslate(routes, { text: 'go', context: '', mode: 'reasoning', index: 0 })
+  assert.equal(reasoning.json.skipped, true)
+  assert.equal(calls.length, 0)
+
+  const selection = await postTranslate(routes, { text: 'go', context: '', mode: 'selection' })
+  assert.equal(selection.json.ok, true)
+  assert.equal(selection.json.skipped, undefined)
+  assert.equal(calls.length, 1)
+})
+
+test('auto cloud fallback does not poison the local cache key', async () => {
+  const text = 'Fallback must not cache under local key.'
+  const chunks = planChunks(text)
+  const { runtime, calls } = createRuntime({
+    chunks,
+    settings: { engine: 'auto', localBaseUrl: 'http://127.0.0.1:9', localModel: 'qwen2.5:3b' },
+  })
+  const routes = createHarness(runtime)
+
+  const first = await postTranslate(routes, { text, context: '', mode: 'selection' })
+  assert.equal(first.json.ok, true)
+  assert.equal(first.json.route, 'cloud')
+  assert.equal(calls.length, 1)
+
+  // Calling again under auto should not return a cached hit from local:qwen2.5:3b.
+  const second = await postTranslate(routes, { text, context: '', mode: 'selection' })
+  assert.equal(second.json.ok, true)
+  assert.equal(second.json.cached, false)
+  assert.equal(calls.length, 2)
+})
+
+test('closing the HTTP response aborts the upstream model signal', async (t) => {
+  const sockets = new Set()
+  const server = http.createServer((_req, _res) => {})
+  server.on('connection', (socket) => {
+    sockets.add(socket)
+    socket.on('close', () => sockets.delete(socket))
+  })
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve))
+  t.after(async () => {
+    for (const socket of sockets) socket.destroy()
+    await new Promise((resolve) => server.close(resolve))
+  })
+  const { port } = server.address()
+
+  let sawAbort = false
+  const { runtime } = createRuntime({ chunks: [] })
+  runtime.services.llm = {
+    async *stream(req) {
+      await new Promise((resolve) => {
+        req.signal.addEventListener(
+          'abort',
+          () => {
+            sawAbort = true
+            resolve()
+          },
+          { once: true },
+        )
+      })
+      yield { type: 'text-delta', text: '{}' }
+    },
+  }
+  const routes = createHarness(runtime)
+  const route = routes.get(`${API_PREFIX}/translate`)
+  const res = Object.assign(new EventEmitter(), {
+    statusCode: 200,
+    writableEnded: false,
+    destroyed: false,
+    headers: {},
+    setHeader(name, value) {
+      this.headers[name.toLowerCase()] = String(value)
+    },
+    end() {
+      this.writableEnded = true
+    },
+  })
+  const req = createRequest({ method: 'POST', url: `${API_PREFIX}/translate`, body: { text: `Abort test ${port}`, mode: 'selection' } })
+  const pending = route.handler(req, res)
+  await new Promise((resolve) => setTimeout(resolve, 25))
+  res.emit('close')
+  await pending
+  assert.equal(sawAbort, true)
 })

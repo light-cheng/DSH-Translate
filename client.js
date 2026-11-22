@@ -31,6 +31,7 @@ window.__ModuleLoader__.load({
     const DICT_TOKEN_LIMIT = 4
     const SPEAK_CACHE_LIMIT = 60
     const SPEAK_WATCHDOG_MS = 4500
+    const SPEAK_MAX_MS = 15000
 
     let t = (key) => key
 
@@ -71,8 +72,8 @@ window.__ModuleLoader__.load({
       'toEnglish.busy': '…',
       'toEnglish.title': '已换成英文',
       'toEnglish.copied': '输入框不支持程序写入，英文已复制到剪贴板',
+      'toEnglish.changed': '草稿已变动，英文已复制到剪贴板',
       'toEnglish.undo': '撤销',
-      'toEnglish.notes': '改写说明',
       'settings.title': 'DSH-Translate',
       'settings.intro': '在对话里读懂英文：思考链中英对照、选中英文即时翻译与语境讲解、输入框中文一键变英文，学到的词可以收藏进生词本。',
       'settings.groupBehaviour': '行为',
@@ -122,7 +123,7 @@ window.__ModuleLoader__.load({
       'settings.modelSave': '保存',
       'settings.modelClear': '恢复默认',
       'settings.saved': '已保存',
-      'word.title': '生词卡',
+      'word.meaning': '语境释义',
       'word.usage': '用法',
       'word.collocations': '搭配',
       'word.example': '例句',
@@ -142,7 +143,6 @@ window.__ModuleLoader__.load({
       'settings.vocabColTerm': '单词',
       'settings.vocabColPos': '词性',
       'settings.vocabColGloss': '释义',
-      'settings.vocabColExample': '例句',
       'settings.vocabColTime': '收藏时间',
       'settings.vocabFiltered': '筛出 {m} / 共 {n} 条',
       'settings.vocabNoMatch': '没有匹配的词条，换个关键词试试',
@@ -151,11 +151,12 @@ window.__ModuleLoader__.load({
       'settings.vocabDaysAgo': '{n} 天前',
       'settings.vocabCopy': '复制为 JSON',
       'settings.vocabClear': '清空生词本',
+      'settings.vocabClearConfirm': '再次点击确认清空',
       'settings.vocabRemove': '删除',
       'settings.groupCache': '缓存',
       'settings.cacheHint': '共 {n} 条译文缓存，命中时不会调用模型',
       'settings.cacheClear': '清空缓存',
-      'settings.privacy': '只有你点击「译」或「Aa」时，选中或草稿里的文本才会发送给上面这一路模型；译文与设置保存在本机 profile 目录。',
+      'settings.privacy': '只有你划词、点击「译成中文」「讲解这个词」或「中→英」时，对应文本才会发送给上面这一路模型；点击或悬停发音按钮时向有道词典请求该词音频；译文、设置与生词本保存在本机 profile 目录。',
       'settings.persistOff': '无法写入 profile 目录，设置只在本次运行有效。',
       'error.generic': '请求失败，请重试',
       'error.network': '连不上插件后端，刷新页面后再试',
@@ -197,8 +198,8 @@ window.__ModuleLoader__.load({
       'toEnglish.busy': '…',
       'toEnglish.title': 'Rewritten in English',
       'toEnglish.copied': 'The composer cannot be written from here; the English was copied',
+      'toEnglish.changed': 'The draft changed while translating; the English was copied',
       'toEnglish.undo': 'Undo',
-      'toEnglish.notes': 'Why',
       'settings.title': 'DSH-Translate',
       'settings.intro': 'Read English while you work: bilingual reasoning, translate any selection with a context note, turn a Chinese draft into English in one click, and keep a vocabulary notebook.',
       'settings.groupBehaviour': 'Behaviour',
@@ -248,7 +249,7 @@ window.__ModuleLoader__.load({
       'settings.modelSave': 'Save',
       'settings.modelClear': 'Use default',
       'settings.saved': 'Saved',
-      'word.title': 'Word card',
+      'word.meaning': 'In context',
       'word.usage': 'Usage',
       'word.collocations': 'Collocations',
       'word.example': 'Example',
@@ -268,7 +269,6 @@ window.__ModuleLoader__.load({
       'settings.vocabColTerm': 'Term',
       'settings.vocabColPos': 'Pos',
       'settings.vocabColGloss': 'Meaning',
-      'settings.vocabColExample': 'Example',
       'settings.vocabColTime': 'Saved',
       'settings.vocabFiltered': '{m} of {n}',
       'settings.vocabNoMatch': 'No matching entry; try another keyword',
@@ -277,11 +277,12 @@ window.__ModuleLoader__.load({
       'settings.vocabDaysAgo': '{n} days ago',
       'settings.vocabCopy': 'Copy as JSON',
       'settings.vocabClear': 'Clear vocabulary',
+      'settings.vocabClearConfirm': 'Click again to confirm',
       'settings.vocabRemove': 'Remove',
       'settings.groupCache': 'Cache',
       'settings.cacheHint': '{n} cached translations; a hit does not call a model',
       'settings.cacheClear': 'Clear cache',
-      'settings.privacy': 'Text is sent to the model above only when you click Translate or Aa. Translations and settings stay in this profile directory.',
+      'settings.privacy': 'Text is sent to the model above only when you select English, click Translate, Explain, or 中→EN. Pronunciation buttons request that word’s audio from Youdao on click or hover. Translations, settings and vocabulary stay in this profile directory.',
       'settings.persistOff': 'The profile directory is not writable; settings live for this run only.',
       'error.generic': 'Request failed, try again',
       'error.network': 'Cannot reach the plugin backend; refresh the page',
@@ -393,12 +394,24 @@ window.__ModuleLoader__.load({
       cacheSize: 0,
       vocabCount: 0,
       dict: null,
-      maxChars: 8000,
       persist: true,
       error: '',
     }
     let hostStateRequest = null
     const hostListeners = new Set()
+
+    function routeSignature(host = hostState) {
+      const settings = host?.settings ?? {}
+      const engine = settings.engine ?? host?.engine ?? 'cloud'
+      const lang = settings.targetLanguage ?? 'zh-CN'
+      const local = String(settings.localModel ?? host?.localModel ?? '').trim()
+      const cloud = settings.model?.provider && settings.model?.model
+        ? `${settings.model.provider}/${settings.model.model}`
+        : host?.model?.provider && host?.model?.model
+          ? `${host.model.provider}/${host.model.model}`
+          : ''
+      return `${engine}|${local}|${cloud}|${lang}`
+    }
 
     function publishHostState(patch) {
       hostState = { ...hostState, ...patch }
@@ -491,10 +504,15 @@ window.__ModuleLoader__.load({
       return prefs
     }
 
+    const ROUTE_FIELDS = ['engine', 'model', 'localModel', 'localBaseUrl', 'targetLanguage']
+
     async function saveSettings(patch) {
-      const settings = { ...(hostState.settings ?? {}), ...patch }
-      const payload = await requestJson('/settings', { settings })
-      if (payload?.ok) publishHostState({ ...payload, ready: true })
+      const body = hostState.ready ? { settings: { ...(hostState.settings ?? {}), ...patch } } : { settings: patch }
+      const payload = await requestJson('/settings', body)
+      if (payload?.ok) {
+        if (ROUTE_FIELDS.some((field) => Object.prototype.hasOwnProperty.call(patch ?? {}, field))) memoClear()
+        publishHostState({ ...payload, ready: true })
+      }
       return payload
     }
 
@@ -502,8 +520,12 @@ window.__ModuleLoader__.load({
 
     const memo = new Map()
 
-    function memoGet(mode, text) {
-      const key = `${mode}\u0000${text}`
+    function memoKey(mode, text, extra = '') {
+      return `${routeSignature()}\u0000${mode}\u0000${text}\u0000${extra}`
+    }
+
+    function memoGet(mode, text, extra = '') {
+      const key = memoKey(mode, text, extra)
       const hit = memo.get(key)
       if (hit) {
         memo.delete(key)
@@ -512,8 +534,8 @@ window.__ModuleLoader__.load({
       return hit
     }
 
-    function memoSet(mode, text, data) {
-      const key = `${mode}\u0000${text}`
+    function memoSet(mode, text, data, extra = '') {
+      const key = memoKey(mode, text, extra)
       if (memo.has(key)) memo.delete(key)
       memo.set(key, data)
       while (memo.size > MEMO_LIMIT) {
@@ -521,6 +543,10 @@ window.__ModuleLoader__.load({
         if (oldest === undefined) break
         memo.delete(oldest)
       }
+    }
+
+    function memoClear() {
+      memo.clear()
     }
 
     // ------------------------------------------------------ local dictionary
@@ -622,7 +648,7 @@ window.__ModuleLoader__.load({
         entries.forEach((raw, index) => {
           if (!raw || typeof raw !== 'object') return
           const entry = {
-            query: String(raw.query ?? list[index] ?? ''),
+            query: String(raw.query ?? (entries.length === list.length ? list[index] : '')),
             found: available && raw.found === true,
             available,
             word: String(raw.word ?? ''),
@@ -631,8 +657,10 @@ window.__ModuleLoader__.load({
             translation: String(raw.translation ?? ''),
             matched: String(raw.matched ?? ''),
           }
-          dictMemoSet(entry.query, entry)
-          if (list[index]) dictMemoSet(list[index], entry)
+          if (entry.query) dictMemoSet(entry.query, entry)
+          if (entries.length === list.length && list[index] && dictKey(entry.query) === list[index]) {
+            dictMemoSet(list[index], entry)
+          }
           if (entry.found) found.push(entry)
         })
         // A word the Host skipped still counts as seen, so the card does not
@@ -811,6 +839,7 @@ window.__ModuleLoader__.load({
       const token = speakToken
       let settled = false
       let timer = null
+      let maxTimer = null
       let audio = null
 
       const finish = () => {
@@ -822,8 +851,7 @@ window.__ModuleLoader__.load({
         }
       }
 
-      const settle = (useVoice) => {
-        if (settled) return
+      const cleanup = () => {
         settled = true
         if (timer !== null) {
           try {
@@ -833,6 +861,28 @@ window.__ModuleLoader__.load({
           }
           timer = null
         }
+        if (maxTimer !== null) {
+          try {
+            window.clearTimeout(maxTimer)
+          } catch {
+            // A missing timer host leaves nothing to clear.
+          }
+          maxTimer = null
+        }
+        if (audio) {
+          try {
+            audio.onended = null
+            audio.onerror = null
+            audio.onabort = null
+          } catch {
+            // Detached audio elements may reject handler updates.
+          }
+        }
+      }
+
+      const settle = (useVoice) => {
+        if (settled || token !== speakToken) return
+        cleanup()
         if (speakCurrent && speakCurrent.token === token) speakCurrent = null
         if (useVoice) speakWithVoice(value, accent)
         finish()
@@ -844,10 +894,12 @@ window.__ModuleLoader__.load({
           audio.preload = 'auto'
           audio.onended = () => settle(false)
           audio.onerror = () => settle(true)
+          audio.onabort = () => settle(false)
           speakCurrent = {
             token,
             finish,
             stop: () => {
+              cleanup()
               try {
                 audio.pause()
                 audio.currentTime = 0
@@ -870,6 +922,7 @@ window.__ModuleLoader__.load({
             }
             settle(true)
           }, SPEAK_WATCHDOG_MS)
+          maxTimer = window.setTimeout(() => settle(false), SPEAK_MAX_MS)
           const playback = audio.play()
           if (playback && typeof playback.catch === 'function') playback.catch(() => settle(true))
           return
@@ -1013,6 +1066,25 @@ window.__ModuleLoader__.load({
       }
     }
 
+    function pointInRect(x, y, rect, pad = 8) {
+      return x >= rect.left - pad && x <= rect.right + pad && y >= rect.top - pad && y <= rect.bottom + pad
+    }
+
+    function pointInSelection(x, y, selection) {
+      try {
+        const rects = selection?.range?.getClientRects?.()
+        if (rects && rects.length > 0) {
+          for (let i = 0; i < rects.length; i += 1) {
+            if (pointInRect(x, y, rects[i])) return true
+          }
+          return false
+        }
+      } catch {
+        // Fall back to the outer bounding rect.
+      }
+      return Boolean(selection?.rect && pointInRect(x, y, selection.rect))
+    }
+
     /** The current non-empty English selection, with its viewport rectangle. */
     function readSelection() {
       try {
@@ -1116,16 +1188,18 @@ window.__ModuleLoader__.load({
       const mountedRef = React.useRef(true)
 
       const run = React.useCallback(
-        async (rawText, context, resume) => {
+        async (rawText, context, resume, options) => {
           const text = String(rawText ?? '').trim()
           if (!text) {
             setState({ status: 'error', message: t('error.emptySelection') })
             return
           }
+          const force = Boolean(options && options.force)
 
           // Selection: one request and one result, exactly as before.
           if (mode !== 'reasoning') {
-            const hit = memoGet(mode, text)
+            const ctxKey = String(context ?? '').trim()
+            const hit = force ? null : memoGet(mode, text, ctxKey)
             if (hit) {
               setState({ status: 'done', data: hit })
               return
@@ -1139,7 +1213,11 @@ window.__ModuleLoader__.load({
             abortRef.current = controller
             setState({ status: 'busy' })
             try {
-              const payload = await requestJson('/translate', { text, context: String(context ?? ''), mode }, controller.signal)
+              const payload = await requestJson(
+                '/translate',
+                { text, context: String(context ?? ''), mode, ...(force ? { force: true } : {}) },
+                controller.signal,
+              )
               if (abortRef.current !== controller) return
               if (!payload?.ok) {
                 setState({ status: 'error', message: payload?.message || t('error.generic'), code: payload?.code })
@@ -1160,7 +1238,7 @@ window.__ModuleLoader__.load({
                 // looking like a finished translation.
                 partial: Boolean(payload.partial),
               }
-              memoSet(mode, text, data)
+              if (!data.partial) memoSet(mode, text, data, ctxKey)
               setState({ status: 'done', data })
             } catch (error) {
               if (error?.name === 'AbortError' || abortRef.current !== controller || !mountedRef.current) return
@@ -1173,9 +1251,9 @@ window.__ModuleLoader__.load({
 
           // Reasoning: continue a saved partial result, replay a memo hit, or
           // ask for chunk 0 and follow `next` until it is null.
-          let data = normalizePartial(resume)
+          let data = force ? null : normalizePartial(resume)
           if (!data) {
-            const hit = memoGet(mode, text)
+            const hit = force ? null : memoGet(mode, text)
             if (hit) {
               setState(hit.next != null ? { status: 'stopped', data: hit } : { status: 'done', data: hit })
               return
@@ -1193,7 +1271,11 @@ window.__ModuleLoader__.load({
           try {
             let index = data.next
             while (true) {
-              const payload = await requestJson('/translate', { text, context: String(context ?? ''), mode, index }, controller.signal)
+              const payload = await requestJson(
+                '/translate',
+                { text, context: String(context ?? ''), mode, index, ...(force ? { force: true } : {}) },
+                controller.signal,
+              )
               // A newer run, a Stop click or an unmount owns the state now.
               if (!mountedRef.current || abortRef.current !== controller || controller.signal.aborted) return
               if (!payload?.ok) {
@@ -1264,7 +1346,16 @@ window.__ModuleLoader__.load({
         [mode],
       )
 
-      const reset = React.useCallback(() => setState({ status: 'idle' }), [])
+      const reset = React.useCallback(() => {
+        const controller = abortRef.current
+        abortRef.current = null
+        try {
+          controller?.abort?.()
+        } catch {
+          // Nothing was in flight.
+        }
+        setState({ status: 'idle' })
+      }, [])
 
       /** Bring back one memo result: a complete one, or a stopped partial one. */
       const restore = React.useCallback((data) => {
@@ -1315,9 +1406,12 @@ window.__ModuleLoader__.load({
           action: 'add',
           entry: { term: term.term, pos: term.pos, gloss: term.gloss, example: term.example, source },
         })
-        if (payload?.ok) publishHostState({ vocabCount: (payload.entries ?? []).length })
+        if (!payload?.ok) return false
+        publishHostState({ vocabCount: (payload.entries ?? []).length })
+        return true
       } catch (error) {
         logError('could not save a term', error)
+        return false
       }
     }
 
@@ -1337,7 +1431,7 @@ window.__ModuleLoader__.load({
           snapshot.editor && snapshot.editor.text,
         ]
         for (const candidate of candidates) {
-          if (typeof candidate === 'string' && candidate.trim()) return candidate
+          if (typeof candidate === 'string') return candidate
         }
         let best = ''
         let visited = 0
@@ -1407,7 +1501,6 @@ window.__ModuleLoader__.load({
 .dsh-tr-tool:disabled{opacity:.6;cursor:default}
 .dsh-tr-card{border:1px solid var(--dsw-alias-border-l1);background:var(--dsw-alias-bg-layer-2);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:8px;min-width:0}
 .dsh-tr-float .dsh-tr-card,.dsh-tr-root .dsh-tr-card{border:0;background:transparent;padding:0}
-.dsh-tr-card-head{font-size:12px;color:var(--dsw-alias-label-secondary);font-weight:600;letter-spacing:.02em}
 .dsh-tr-translation{white-space:pre-wrap;overflow-wrap:anywhere;color:var(--dsw-alias-label-primary);font-size:13.5px;line-height:1.75}
 .dsh-tr-context{display:flex;gap:6px;font-size:12.5px;line-height:1.6;color:var(--dsw-alias-label-secondary)}
 .dsh-tr-context-label{flex:0 0 auto;color:var(--dsw-alias-brand-primary);font-weight:600}
@@ -1478,8 +1571,8 @@ window.__ModuleLoader__.load({
 .dsh-tr-vocab-search{flex:1 1 200px;min-width:170px}
 .dsh-tr-vocab-count{font-size:11.5px;color:var(--dsw-alias-state-idle-primary)}
 .dsh-tr-vocab-empty{padding:8px 0 14px}
-.dsh-tr-vtable{display:flex;flex-direction:column;padding-bottom:4px}
-.dsh-tr-vhead,.dsh-tr-vrow{display:grid;grid-template-columns:minmax(84px,1fr) 50px minmax(150px,2.4fr) 62px 20px;gap:10px;align-items:baseline;padding:6px 4px}
+.dsh-tr-vtable{display:flex;flex-direction:column;padding-bottom:4px;overflow-x:auto}
+.dsh-tr-vhead,.dsh-tr-vrow{display:grid;grid-template-columns:minmax(64px,1fr) 44px minmax(0,2.2fr) 56px 20px;gap:8px;align-items:baseline;padding:6px 4px}
 .dsh-tr-vrow.is-clickable{cursor:pointer}
 .dsh-tr-vrow.is-clickable:hover{background:var(--dsw-alias-bg-layer-2)}
 .dsh-tr-vrow.is-open{background:var(--dsw-alias-bg-layer-2)}
@@ -1500,7 +1593,6 @@ window.__ModuleLoader__.load({
 .dsh-tr-vterm{font-weight:600;color:var(--dsw-alias-label-primary);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .dsh-tr-vpos{color:var(--dsw-alias-state-idle-primary);font-style:italic}
 .dsh-tr-vgloss{overflow-wrap:anywhere}
-.dsh-tr-vexample{color:var(--dsw-alias-state-idle-primary);font-style:italic;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .dsh-tr-vtime{color:var(--dsw-alias-state-idle-primary);font-size:11.5px;white-space:nowrap}
 .dsh-tr-vremove{appearance:none;border:0;background:transparent;color:var(--dsw-alias-state-idle-primary);font-size:14px;line-height:1;padding:0 2px;cursor:pointer;border-radius:4px}
 .dsh-tr-vremove:hover{color:var(--dsw-alias-state-error-primary);background:var(--dsw-alias-bg-layer-2)}
@@ -1511,11 +1603,41 @@ mark.dsh-tr-hit{background:transparent;color:var(--dsw-alias-brand-primary);font
 `
 
     function Styles() {
+      const canHead = typeof document !== 'undefined' && Boolean(document.head) && typeof document.createElement === 'function'
+      React.useEffect(() => {
+        try {
+          if (typeof document === 'undefined' || !document.head || typeof document.createElement !== 'function') return
+          if (typeof document.getElementById === 'function' && document.getElementById('dsh-translate-styles')) return
+          const el = document.createElement('style')
+          el.id = 'dsh-translate-styles'
+          el.textContent = CSS
+          document.head.appendChild(el)
+        } catch {
+          // Headless harnesses without DOM mutation fall back cleanly.
+        }
+      }, [])
+      if (canHead) return null
       return h('style', { key: 'dsh-translate-styles' }, CSS)
     }
 
     function CopyButton({ value, label }) {
       const [copied, setCopied] = React.useState(false)
+      const timerRef = React.useRef(null)
+      const mountedRef = React.useRef(true)
+      React.useEffect(() => {
+        mountedRef.current = true
+        return () => {
+          mountedRef.current = false
+          if (timerRef.current !== null) {
+            try {
+              window.clearTimeout(timerRef.current)
+            } catch {
+              // No timer host to clear.
+            }
+            timerRef.current = null
+          }
+        }
+      }, [])
       return h(
         'button',
         {
@@ -1524,10 +1646,21 @@ mark.dsh-tr-hit{background:transparent;color:var(--dsw-alias-brand-primary);font
           onClick: async () => {
             try {
               await navigator.clipboard.writeText(String(value ?? ''))
+              if (!mountedRef.current) return
               setCopied(true)
-              window.setTimeout(() => setCopied(false), 1600)
+              if (timerRef.current !== null) {
+                try {
+                  window.clearTimeout(timerRef.current)
+                } catch {
+                  // Ignore missing clearTimeout.
+                }
+              }
+              timerRef.current = window.setTimeout(() => {
+                timerRef.current = null
+                if (mountedRef.current) setCopied(false)
+              }, 1600)
             } catch {
-              setCopied(false)
+              if (mountedRef.current) setCopied(false)
             }
           },
         },
@@ -1571,6 +1704,13 @@ mark.dsh-tr-hit{background:transparent;color:var(--dsw-alias-brand-primary);font
     /** One word, one pronunciation, whichever card asked for it. */
     function SpeakButton({ text, accent, className, title }) {
       const [playing, setPlaying] = React.useState(false)
+      const mountedRef = React.useRef(true)
+      React.useEffect(() => {
+        mountedRef.current = true
+        return () => {
+          mountedRef.current = false
+        }
+      }, [])
       const tone = accentOf(accent)
       const label = title || t(tone === 'uk' ? 'speak.uk' : 'speak.us')
       const value = String(text ?? '').trim()
@@ -1590,7 +1730,9 @@ mark.dsh-tr-hit{background:transparent;color:var(--dsw-alias-brand-primary);font
             // A chip may sit inside a clickable row: the sound is its own action.
             event.stopPropagation()
             setPlaying(true)
-            playSpeech(value, tone, () => setPlaying(false))
+            playSpeech(value, tone, () => {
+              if (mountedRef.current) setPlaying(false)
+            })
           },
         },
         h('span', { className: 'dsh-tr-speak-icon', 'aria-hidden': 'true' }, playing ? '🔊' : '🔈'),
@@ -1663,6 +1805,13 @@ mark.dsh-tr-hit{background:transparent;color:var(--dsw-alias-brand-primary);font
     function Terms({ terms, source }) {
       const host = useHostState()
       const [saved, setSaved] = React.useState(() => new Set())
+      const mountedRef = React.useRef(true)
+      React.useEffect(() => {
+        mountedRef.current = true
+        return () => {
+          mountedRef.current = false
+        }
+      }, [])
       const accent = accentOf((host.settings ?? {}).accent)
       // Only single-word chips carry a phonetic: a phrase has no one entry.
       const words = React.useMemo(() => {
@@ -1681,7 +1830,8 @@ mark.dsh-tr-hit{background:transparent;color:var(--dsw-alias-brand-primary);font
         terms.map((term) => {
           const key = String(term.term ?? '')
           const isSaved = saved.has(key)
-          const known = dictMemoGet(key)
+          const toks = tokensOf(key)
+          const known = toks.length === 1 ? dictMemoGet(toks[0]) : dictMemoGet(key)
           const entry = known && known.found ? known : null
           return h(
             'div',
@@ -1693,14 +1843,22 @@ mark.dsh-tr-hit{background:transparent;color:var(--dsw-alias-brand-primary);font
                 className: 'dsh-tr-term-save',
                 title: isSaved ? t('terms.saved') : t('terms.save'),
                 'aria-label': `${isSaved ? t('terms.saved') : t('terms.save')} ${key}`,
-                onClick: () => {
+                onClick: async () => {
                   if (isSaved) return
                   setSaved((previous) => {
                     const next = new Set(previous)
                     next.add(key)
                     return next
                   })
-                  void saveTerm(term, source)
+                  const ok = await saveTerm(term, source)
+                  if (!ok && mountedRef.current) {
+                    setSaved((previous) => {
+                      if (!previous.has(key)) return previous
+                      const next = new Set(previous)
+                      next.delete(key)
+                      return next
+                    })
+                  }
                 },
               },
               h('span', { className: 'dsh-tr-term-word' }, key),
@@ -1716,11 +1874,11 @@ mark.dsh-tr-hit{background:transparent;color:var(--dsw-alias-brand-primary);font
     }
 
     /** The result itself: translation, context note and the term chips. */
-    function TranslationBody({ data, showTerms, showContext, source }) {
+    function TranslationBody({ data, showTerms, showContext, source, targetLanguage }) {
       return h(
         React.Fragment,
         null,
-        h('div', { className: 'dsh-tr-translation', lang: 'zh-CN' }, data.translation || ''),
+        h('div', { className: 'dsh-tr-translation', lang: targetLanguage || 'zh-CN' }, data.translation || ''),
         showContext && data.contextNote
           ? h('div', { className: 'dsh-tr-context' }, h('span', { className: 'dsh-tr-context-label' }, t('context.title')), h('span', null, data.contextNote))
           : null,
@@ -1740,7 +1898,7 @@ mark.dsh-tr-hit{background:transparent;color:var(--dsw-alias-brand-primary);font
      * part, so the card grows while it runs, keeps every translated part when a
      * part fails or the reader stops, and offers the action that fits.
      */
-    function ResultCard({ state, onRetry, onStop, onContinue, showTerms, showContext, source }) {
+    function ResultCard({ state, onRetry, onStop, onContinue, showTerms, showContext, source, targetLanguage }) {
       if (!state || state.status === 'idle') return null
       if (state.status === 'skip') return h('div', { className: 'dsh-tr-muted' }, t('state.skipped'))
       const data = state.data ?? null
@@ -1749,7 +1907,7 @@ mark.dsh-tr-hit{background:transparent;color:var(--dsw-alias-brand-primary);font
         ? h('span', { className: 'dsh-tr-badge' }, t('state.partial'))
         : null
       const body = data && (String(data.translation ?? '') || (showContext && data.contextNote) || (showTerms && data.terms && data.terms.length))
-        ? h(TranslationBody, { data, showTerms, showContext, source })
+        ? h(TranslationBody, { data, showTerms, showContext, source, targetLanguage })
         : null
 
       if (state.status === 'busy') {
@@ -1874,13 +2032,14 @@ mark.dsh-tr-hit{background:transparent;color:var(--dsw-alias-brand-primary);font
       const enabled = hostEnabled(host)
       const translatable = enabled && hasLatin(text)
       const status = state.status
+      const routeSig = routeSignature(host)
 
       React.useEffect(() => {
         // A cached result survives collapse/expand without a new request; a
         // partly translated block comes back stopped and never refetches itself.
-        // The memo is keyed by the trimmed text the request sends.
+        // The memo is keyed by the trimmed text and active route.
         restore(memoGet('reasoning', text.trim()))
-      }, [text, restore])
+      }, [text, routeSig, restore])
 
       React.useEffect(() => {
         if (!translatable || running) return
@@ -1921,12 +2080,14 @@ mark.dsh-tr-hit{background:transparent;color:var(--dsw-alias-brand-primary);font
                 showTerms: settings.showTerms !== false,
                 showContext: settings.showContext !== false,
                 source: 'reasoning',
+                targetLanguage: settings.targetLanguage || 'zh-CN',
                 onStop: () => stop(),
                 onContinue: () => {
                   void run(text, '', state.data)
                 },
                 onRetry: () => {
-                  void run(text, '', state.data)
+                  if (status === 'done') void run(text, '', null, { force: true })
+                  else void run(text, '', state.data)
                 },
               }),
           )
@@ -1943,26 +2104,23 @@ mark.dsh-tr-hit{background:transparent;color:var(--dsw-alias-brand-primary);font
       // Translating on selection only makes sense when the route is fast: a
       // local CPU model takes about a minute per paragraph, so it waits for a
       // click instead of firing on every drag.
-      const routeIsFast = (host.engine ?? 'cloud') === 'cloud'
+      const routeIsFast = (settings.engine ?? host.engine ?? 'cloud') === 'cloud'
       const autoSelection = localPrefs.autoSelection !== false && routeIsFast
       const { state: translateState, run: translateRun, reset: translateReset } = useTranslationRun('selection')
       const [anchor, setAnchor] = React.useState(null)
       const [panel, setPanel] = React.useState(null)
       const [menu, setMenu] = React.useState(null)
-      const [notice, setNotice] = React.useState('')
       const cardRef = React.useRef(null)
       const lastAutoRef = React.useRef('')
 
       const closePanel = React.useCallback(() => {
         setPanel(null)
-        setNotice('')
         translateReset()
       }, [translateReset])
 
       const openTranslation = React.useCallback(
         (selection) => {
           if (!selection || !selection.text) return
-          setNotice('')
           setMenu(null)
           setAnchor(null)
           setPanel({ kind: 'translate', text: selection.text, context: selection.context, rect: selection.rect, range: selection.range })
@@ -2017,7 +2175,6 @@ mark.dsh-tr-hit{background:transparent;color:var(--dsw-alias-brand-primary);font
         () =>
           subscribePanel((request) => {
             if (!request) return
-            setNotice('')
             setMenu(null)
             setPanel(request)
             if (request.kind === 'translate') void translateRun(request.text, request.context)
@@ -2036,6 +2193,7 @@ mark.dsh-tr-hit{background:transparent;color:var(--dsw-alias-brand-primary);font
           }
           const selection = readSelection()
           if (!selection) return
+          if (Number.isFinite(event.clientX) && Number.isFinite(event.clientY) && !pointInSelection(event.clientX, event.clientY, selection)) return
           event.preventDefault()
           setMenu({ x: event.clientX, y: event.clientY, selection })
         }
@@ -2088,21 +2246,35 @@ mark.dsh-tr-hit{background:transparent;color:var(--dsw-alias-brand-primary);font
         }
       }, [menu])
 
-      // Keep the card glued to its range while the conversation scrolls.
-      const range = panel && panel.range
+      // Keep the card and selection pill glued to their range while scrolling.
+      const panelRange = panel && panel.range
+      const anchorRange = !autoSelection && anchor && anchor.range
       React.useEffect(() => {
-        if (!range) return undefined
+        if (!panelRange && !anchorRange) return undefined
         let frame = 0
         const reposition = () => {
           if (frame) return
           frame = window.requestAnimationFrame(() => {
             frame = 0
-            try {
-              const rect = range.getBoundingClientRect()
-              if (!rect || (!rect.width && !rect.height)) return
-              setPanel((current) => (current && current.range === range ? { ...current, rect: rectToPlain(rect) } : current))
-            } catch {
-              // A detached range keeps its last position.
+            if (panelRange) {
+              try {
+                const rect = panelRange.getBoundingClientRect()
+                if (rect && (rect.width || rect.height)) {
+                  setPanel((current) => (current && current.range === panelRange ? { ...current, rect: rectToPlain(rect) } : current))
+                }
+              } catch {
+                // A detached range keeps its last position.
+              }
+            }
+            if (anchorRange) {
+              try {
+                const rect = anchorRange.getBoundingClientRect()
+                if (rect && (rect.width || rect.height)) {
+                  setAnchor((current) => (current && current.range === anchorRange ? { ...current, rect: rectToPlain(rect) } : current))
+                }
+              } catch {
+                // A detached range keeps its last position.
+              }
             }
           })
         }
@@ -2113,7 +2285,7 @@ mark.dsh-tr-hit{background:transparent;color:var(--dsw-alias-brand-primary);font
           window.removeEventListener('resize', reposition)
           if (frame) window.cancelAnimationFrame(frame)
         }
-      }, [range])
+      }, [panelRange, anchorRange])
 
       if (!enabled) return null
 
@@ -2202,10 +2374,10 @@ mark.dsh-tr-hit{background:transparent;color:var(--dsw-alias-brand-primary);font
                   showTerms: settings.showTerms !== false,
                   showContext: settings.showContext !== false,
                   source: 'selection',
-                  onRetry: () => void translateRun(panel.text, panel.context),
+                  targetLanguage: settings.targetLanguage || 'zh-CN',
+                  onRetry: () => void translateRun(panel.text, panel.context, null, { force: true }),
                 }),
               ),
-            notice ? h('div', { className: 'dsh-tr-muted' }, notice) : null,
             panel.kind === 'translate' ? h('div', { className: 'dsh-tr-src' }, truncate(panel.text, 260)) : null,
           )
           : null,
@@ -2224,18 +2396,45 @@ mark.dsh-tr-hit{background:transparent;color:var(--dsw-alias-brand-primary);font
 
     function WordCard({ entry }) {
       const host = useHostState()
+      const settings = host.settings ?? {}
       const memoId = String(entry?.id ?? entry?.term ?? '')
       const [state, setState] = React.useState(() => {
         const hit = memoGet('explain', memoId)
         return hit ? { status: 'done', data: hit } : { status: 'idle' }
       })
+      const abortRef = React.useRef(null)
+      const mountedRef = React.useRef(true)
+      const routeSig = routeSignature(host)
+      const prevRouteRef = React.useRef(routeSig)
       // A local CPU model takes too long to fire on a plain click; there the
       // reader asks for the explanation explicitly.
-      const autoExplain = (host.engine ?? 'cloud') === 'cloud'
+      const autoExplain = (settings.engine ?? host.engine ?? 'cloud') === 'cloud'
       const term = String(entry?.term ?? '')
-      const accent = accentOf((host.settings ?? {}).accent)
+      const accent = accentOf(settings.accent)
+      const targetLang = settings.targetLanguage || 'zh-CN'
       const dictWords = React.useMemo(() => tokensOf(term), [term])
       const dict = useDictionary(dictWords)
+
+      React.useEffect(() => {
+        mountedRef.current = true
+        return () => {
+          mountedRef.current = false
+          const controller = abortRef.current
+          abortRef.current = null
+          try {
+            controller?.abort?.()
+          } catch {
+            // Unmount cancels quietly.
+          }
+        }
+      }, [])
+
+      React.useEffect(() => {
+        if (prevRouteRef.current === routeSig) return
+        prevRouteRef.current = routeSig
+        const hit = memoGet('explain', memoId)
+        setState(hit ? { status: 'done', data: hit } : { status: 'idle' })
+      }, [routeSig, memoId])
 
       const run = React.useCallback(async () => {
         const hit = memoGet('explain', memoId)
@@ -2243,14 +2442,26 @@ mark.dsh-tr-hit{background:transparent;color:var(--dsw-alias-brand-primary);font
           setState({ status: 'done', data: hit })
           return
         }
+        try {
+          abortRef.current?.abort?.()
+        } catch {
+          // A settled request is not an error.
+        }
+        const controller = new AbortController()
+        abortRef.current = controller
         setState({ status: 'busy' })
         try {
-          const payload = await requestJson('/explain', {
-            term,
-            pos: entry?.pos ?? '',
-            gloss: entry?.gloss ?? '',
-            example: entry?.example ?? '',
-          })
+          const payload = await requestJson(
+            '/explain',
+            {
+              term,
+              pos: entry?.pos ?? '',
+              gloss: entry?.gloss ?? '',
+              example: entry?.example ?? '',
+            },
+            controller.signal,
+          )
+          if (!mountedRef.current || abortRef.current !== controller) return
           if (!payload?.ok) {
             setState({ status: 'error', message: payload?.message || t('error.generic') })
             return
@@ -2263,8 +2474,11 @@ mark.dsh-tr-hit{background:transparent;color:var(--dsw-alias-brand-primary);font
           }
           memoSet('explain', memoId, data)
           setState({ status: 'done', data })
-        } catch {
+        } catch (error) {
+          if (error?.name === 'AbortError' || !mountedRef.current || abortRef.current !== controller) return
           setState({ status: 'error', message: t('error.network') })
+        } finally {
+          if (abortRef.current === controller) abortRef.current = null
         }
       }, [memoId, term, entry?.pos, entry?.gloss, entry?.example])
 
@@ -2276,7 +2490,9 @@ mark.dsh-tr-hit{background:transparent;color:var(--dsw-alias-brand-primary);font
 
       const data = state.status === 'done' ? state.data : null
       const example = (data && data.example) || entry?.example || ''
-      const copyValue = [term, entry?.pos, entry?.gloss, example].filter(Boolean).join('\n')
+      const showMeaningAsMain = !entry?.gloss && Boolean(data?.meaning)
+      const showMeaningRow = Boolean(entry?.gloss) && Boolean(data?.meaning) && data.meaning.trim() !== String(entry.gloss).trim()
+      const copyValue = [term, entry?.pos, entry?.gloss || data?.meaning, example].filter(Boolean).join('\n')
       // A single word gets a phonetic and its gloss lines; a phrase is read
       // token by token, because no one entry covers it.
       const dictEntry = dictWords.length === 1 ? dict.entries[0] ?? null : null
@@ -2313,7 +2529,8 @@ mark.dsh-tr-hit{background:transparent;color:var(--dsw-alias-brand-primary);font
           dictEntry ? h(Phonetic, { ipa: dictEntry.ipa, ipaUk: dictEntry.ipaUk, accent }) : null,
           term ? h(SpeakButton, { text: term, accent }) : null,
         ),
-        entry?.gloss ? h('div', { className: 'dsh-tr-translation' }, entry.gloss) : null,
+        entry?.gloss ? h('div', { className: 'dsh-tr-translation', lang: targetLang }, entry.gloss) : null,
+        showMeaningAsMain ? h('div', { className: 'dsh-tr-translation', lang: targetLang }, data.meaning) : null,
         dictBlock,
         state.status === 'busy' ? h('div', { className: 'dsh-tr-muted' }, t('state.busy')) : null,
         state.status === 'error'
@@ -2324,6 +2541,9 @@ mark.dsh-tr-hit{background:transparent;color:var(--dsw-alias-brand-primary);font
             h('button', { type: 'button', className: 'dsh-tr-link', onClick: () => void run() }, t('action.retry')),
           )
           : null,
+        showMeaningRow
+          ? h('div', { className: 'dsh-tr-context' }, h('span', { className: 'dsh-tr-context-label' }, t('word.meaning')), h('span', null, data.meaning))
+          : null,
         data && data.usage
           ? h('div', { className: 'dsh-tr-context' }, h('span', { className: 'dsh-tr-context-label' }, t('word.usage')), h('span', null, data.usage))
           : null,
@@ -2332,7 +2552,7 @@ mark.dsh-tr-hit{background:transparent;color:var(--dsw-alias-brand-primary);font
             'div',
             { className: 'dsh-tr-terms-block' },
             h('div', { className: 'dsh-tr-terms-head' }, t('word.collocations')),
-            h('div', { className: 'dsh-tr-colloc' }, data.collocations.map((item) => h('code', { key: item, className: 'dsh-tr-colloc-item' }, item))),
+            h('div', { className: 'dsh-tr-colloc' }, data.collocations.map((item, index) => h('code', { key: `${item}-${index}`, className: 'dsh-tr-colloc-item' }, item))),
           )
           : null,
         example
@@ -2360,8 +2580,8 @@ mark.dsh-tr-hit{background:transparent;color:var(--dsw-alias-brand-primary);font
       return h(
         React.Fragment,
         null,
-        panel.applied === false ? h('div', { className: 'dsh-tr-muted' }, t('toEnglish.copied')) : null,
-        h('div', { className: 'dsh-tr-translation' }, panel.text || ''),
+        panel.applied === false ? h('div', { className: 'dsh-tr-muted' }, t(panel.changed ? 'toEnglish.changed' : 'toEnglish.copied')) : null,
+        h('div', { className: 'dsh-tr-translation', lang: 'en' }, panel.text || ''),
         panel.notes && panel.notes.length
           ? h(
             'ul',
@@ -2403,6 +2623,23 @@ mark.dsh-tr-hit{background:transparent;color:var(--dsw-alias-brand-primary);font
         }
       })()
       const draft = extractDraftText(inputSnapshot).trim()
+      const draftRef = React.useRef(draft)
+      draftRef.current = draft
+      const abortRef = React.useRef(null)
+      const mountedRef = React.useRef(true)
+      React.useEffect(() => {
+        mountedRef.current = true
+        return () => {
+          mountedRef.current = false
+          const controller = abortRef.current
+          abortRef.current = null
+          try {
+            controller?.abort?.()
+          } catch {
+            // Unmount cancels quietly.
+          }
+        }
+      }, [])
       if (!enabled) return null
       // Only offered while the draft contains Chinese: the one case where the
       // button has something to do.
@@ -2419,29 +2656,42 @@ mark.dsh-tr-hit{background:transparent;color:var(--dsw-alias-brand-primary);font
           onClick: async (event) => {
             const element = event && event.currentTarget
             const rect = element && typeof element.getBoundingClientRect === 'function' ? rectToPlain(element.getBoundingClientRect()) : null
+            const sentDraft = draft
+            try {
+              abortRef.current?.abort?.()
+            } catch {
+              // Ignore settled controller.
+            }
+            const controller = new AbortController()
+            abortRef.current = controller
             setBusy(true)
             try {
-              const payload = await requestJson('/toenglish', { text: draft })
+              const payload = await requestJson('/toenglish', { text: sentDraft }, controller.signal)
+              if (!mountedRef.current || abortRef.current !== controller) return
               if (!payload?.ok) {
                 openPanel({ kind: 'draft', rect, error: payload?.message || t('error.generic') })
                 return
               }
               const english = String(payload.english ?? '')
-              const applied = applyDraftValue(actions, english)
+              const draftUnchanged = draftRef.current === sentDraft
+              const applied = draftUnchanged ? applyDraftValue(actions, english) : false
               if (!applied) await copyText(english)
               openPanel({
                 kind: 'draft',
                 rect,
                 text: english,
-                original: draft,
+                original: sentDraft,
                 applied,
+                changed: !draftUnchanged,
                 notes: Array.isArray(payload.notes) ? payload.notes : [],
-                restore: () => applyDraftValue(actions, draft),
+                restore: () => applyDraftValue(actions, sentDraft),
               })
-            } catch {
+            } catch (error) {
+              if (error?.name === 'AbortError' || !mountedRef.current || abortRef.current !== controller) return
               openPanel({ kind: 'draft', rect, error: t('error.network') })
             } finally {
-              setBusy(false)
+              if (abortRef.current === controller) abortRef.current = null
+              if (mountedRef.current) setBusy(false)
             }
           },
         },
@@ -2486,11 +2736,24 @@ mark.dsh-tr-hit{background:transparent;color:var(--dsw-alias-brand-primary);font
       const [localModels, setLocalModels] = React.useState([])
       const [localBusy, setLocalBusy] = React.useState(false)
       const [localNote, setLocalNote] = React.useState('')
+      const [confirmClear, setConfirmClear] = React.useState(false)
       const engine = settings.engine ?? 'cloud'
       const accent = accentOf(settings.accent)
       const dictInfo = host.dict ?? null
       const dictCount = Number(dictInfo?.count) || 0
       const dictReady = Boolean(dictInfo) && dictInfo.available !== false && dictCount > 0
+
+      React.useEffect(() => {
+        if (!savedAt) return undefined
+        const timer = window.setTimeout(() => setSavedAt(0), 2500)
+        return () => window.clearTimeout(timer)
+      }, [savedAt])
+
+      React.useEffect(() => {
+        if (!confirmClear) return undefined
+        const timer = window.setTimeout(() => setConfirmClear(false), 4000)
+        return () => window.clearTimeout(timer)
+      }, [confirmClear])
 
       React.useEffect(() => {
         setProvider(settings.model?.provider ?? '')
@@ -2530,6 +2793,7 @@ mark.dsh-tr-hit{background:transparent;color:var(--dsw-alias-brand-primary);font
           if (payload?.ok) {
             setVocab(Array.isArray(payload.entries) ? payload.entries : [])
             publishHostState({ vocabCount: (payload.entries ?? []).length })
+            setVocabError('')
           }
         } catch {
           setVocabError(t('error.network'))
@@ -2549,8 +2813,10 @@ mark.dsh-tr-hit{background:transparent;color:var(--dsw-alias-brand-primary);font
           } else {
             setVocabError(payload?.message || t('error.generic'))
           }
+          return payload
         } catch {
           setVocabError(t('error.network'))
+          return null
         }
       }, [])
 
@@ -2560,6 +2826,7 @@ mark.dsh-tr-hit{background:transparent;color:var(--dsw-alias-brand-primary);font
           if (payload?.ok) {
             setVocab(payload.entries ?? [])
             publishHostState({ vocabCount: (payload.entries ?? []).length })
+            setVocabError('')
           }
         } catch {
           setVocabError(t('error.network'))
@@ -2572,6 +2839,7 @@ mark.dsh-tr-hit{background:transparent;color:var(--dsw-alias-brand-primary);font
           if (payload?.ok) {
             setVocab([])
             publishHostState({ vocabCount: 0 })
+            setVocabError('')
           }
         } catch {
           setVocabError(t('error.network'))
@@ -2581,7 +2849,11 @@ mark.dsh-tr-hit{background:transparent;color:var(--dsw-alias-brand-primary);font
       const clearCache = React.useCallback(async () => {
         try {
           const payload = await requestJson('/cache/clear', {})
-          if (payload?.ok) publishHostState({ cacheSize: 0 })
+          if (payload?.ok) {
+            memoClear()
+            publishHostState({ cacheSize: 0 })
+            setVocabError('')
+          }
         } catch {
           setVocabError(t('error.network'))
         }
@@ -2609,7 +2881,14 @@ mark.dsh-tr-hit{background:transparent;color:var(--dsw-alias-brand-primary);font
         return rows
       }, [vocab, vocabQuery, vocabRange, vocabSort])
 
-      const modelLabel = host.model ? `${host.model.provider}/${host.model.model}` : ''
+      const cloudLabel = host.model ? `${host.model.provider}/${host.model.model}` : ''
+      const localLabel = String(settings.localModel ?? '').trim()
+      const modelLabel =
+        engine === 'local'
+          ? (localLabel ? `local/${localLabel}` : '')
+          : engine === 'auto'
+            ? [localLabel ? `local/${localLabel}` : '', cloudLabel].filter(Boolean).join(' → ')
+            : cloudLabel
       const cacheSize = host.cacheSize ?? 0
 
       // Opening a row expands it in place: the settings panel is a modal, so a
@@ -2738,7 +3017,22 @@ mark.dsh-tr-hit{background:transparent;color:var(--dsw-alias-brand-primary);font
               ? h(CopyButton, { value: JSON.stringify(visibleVocab, null, 2), label: vocabQuery || vocabRange !== 'all' ? `${t('settings.vocabCopy')} (${visibleVocab.length})` : t('settings.vocabCopy') })
               : null,
             vocab.length
-              ? h('button', { type: 'button', className: 'dsh-tr-link', onClick: () => void clearVocab() }, t('settings.vocabClear'))
+              ? h(
+                'button',
+                {
+                  type: 'button',
+                  className: 'dsh-tr-link',
+                  onClick: () => {
+                    if (!confirmClear) {
+                      setConfirmClear(true)
+                      return
+                    }
+                    setConfirmClear(false)
+                    void clearVocab()
+                  },
+                },
+                t(confirmClear ? 'settings.vocabClearConfirm' : 'settings.vocabClear'),
+              )
               : null,
           ),
         ),
@@ -2839,7 +3133,18 @@ mark.dsh-tr-hit{background:transparent;color:var(--dsw-alias-brand-primary);font
                   onChange: (event) => setBaseUrlDraft(event.target.value),
                   'aria-label': t('settings.localBaseUrl'),
                 }),
-                h('button', { type: 'button', className: 'dsh-tr-chip', onClick: () => void patch({ localBaseUrl: baseUrlDraft }) }, t('settings.modelSave')),
+                h(
+                  'button',
+                  {
+                    type: 'button',
+                    className: 'dsh-tr-chip',
+                    onClick: async () => {
+                      const res = await patch({ localBaseUrl: baseUrlDraft })
+                      if (res?.ok) void loadLocalModels()
+                    },
+                  },
+                  t('settings.modelSave'),
+                ),
                 h('button', { type: 'button', className: 'dsh-tr-chip is-ghost', disabled: localBusy, onClick: () => void loadLocalModels() }, t('settings.localRefresh')),
               ),
             ),
